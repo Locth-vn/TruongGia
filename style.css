@@ -125,6 +125,21 @@ body:not(.role-admin):not(.role-author) .post-only { display: none !important; }
   letter-spacing: .3px;
 }
 
+.clock-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.lunar-today {
+  font-size: 11px;
+  color: #9a6b2f;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: .2px;
+}
+
 .search-box {
   display: flex;
   align-items: center;
@@ -535,6 +550,27 @@ body.role-admin .card { cursor: grab; }
 .d-avatar.female { background: var(--female); }
 .d-avatar.other { background: var(--other); }
 
+.d-avatar.editable { cursor: pointer; position: relative; }
+
+.d-ava-cam {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #a5230f;
+  border: 2px solid #fffcf2;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.d-avatar.editable:hover .d-ava-cam { opacity: 1; }
+.d-ava-cam svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 .d-note {
   background: #f8ecd0;
   border-left: 3px solid #d9a441;
@@ -698,7 +734,7 @@ a.d-row:hover b { color: #a5230f; }
 
 .stat span { font-size: 11px; color: #9a7b52; }
 
-#modalOverlay, #announceOverlay, #authOverlay, #accountsOverlay {
+#modalOverlay, #announceOverlay, #authOverlay, #accountsOverlay, #listOverlay {
   position: fixed;
   inset: 0;
   background: rgba(60, 10, 4, .5);
@@ -798,6 +834,68 @@ a.d-row:hover b { color: #a5230f; }
   border-radius: 8px;
   border: 1px solid #d9a441;
   margin: 4px 0 8px;
+}
+
+.featured .f-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+
+.featured .f-gallery img {
+  width: calc(50% - 5px);
+  height: 190px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #d9a441;
+  background: #f6ecd9;
+}
+
+.featured .f-gallery img:only-child {
+  width: auto;
+  height: auto;
+  max-width: min(100%, 640px);
+  max-height: 400px;
+}
+
+.box[data-list] { cursor: pointer; transition: box-shadow .15s; }
+.box[data-list]:hover { box-shadow: 0 3px 14px rgba(122, 59, 18, .18); }
+
+.box-hint {
+  float: right;
+  font-size: 11px;
+  font-weight: 500;
+  font-style: italic;
+  opacity: .85;
+}
+
+.list-body { max-height: 62vh; overflow: auto; }
+
+.ll-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 4px;
+  border-bottom: 1px dashed #e5cf9f;
+}
+.ll-row:last-child { border-bottom: none; }
+.ll-row.clickable:hover { background: #faf3e0; border-radius: 6px; }
+.ll-main { min-width: 0; }
+.ll-name { font-size: 13px; font-weight: 600; color: #5b3413; }
+.ll-name .lunar-note { font-weight: 500; }
+.ll-sub { font-size: 11px; color: #9a7b52; margin-top: 1px; }
+.ll-date { text-align: right; white-space: nowrap; }
+.ll-date b { display: block; font-size: 13px; color: #b3401f; }
+.ll-date span { font-size: 11px; color: #9a7b52; }
+
+@media (max-width: 720px) {
+  .featured .f-gallery { grid-template-columns: 1fr; }
+  .featured .f-gallery img { width: 100%; height: 220px; }
+  .featured .f-gallery img:only-child { width: auto; height: auto; max-height: 320px; }
 }
 
 .modal {
@@ -1468,6 +1566,26 @@ a.d-row:hover b { color: #a5230f; }
 
 .comment-form input:focus { outline: none; border-color: #a5230f; box-shadow: 0 0 0 3px rgba(165, 35, 15, .12); }
 
+.lunar-chip, .lunar-note {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #7a4a08;
+  background: #f6e7c3;
+  border: 1px solid #e0c184;
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.lunar-note { background: none; border: none; padding: 0; color: #9a7b52; font-weight: 600; }
+
+.field label.sub-label {
+  margin-top: 10px;
+  color: #8a6a3e;
+  font-size: 11.5px;
+}
+
 @media (max-width: 1020px) {
   .portal { grid-template-columns: 1fr; }
   .portal-left { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
@@ -1701,6 +1819,30 @@ body.tree-fs .tree-exit { display: inline-flex; }
 
 .tree-exit:hover { background: #f8ecd0; }
 
+.tree-tools {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: none;
+  gap: 8px;
+}
+
+body.role-admin .tree-tools { display: inline-flex; }
+
+.tree-tools .btn { box-shadow: 0 3px 10px rgba(90, 40, 10, .15); }
+
+#btnTreeSave.dirty {
+  animation: pulse-save 1.2s infinite;
+  outline: 2px solid #e0b23e;
+}
+
+@keyframes pulse-save {
+  0%, 100% { box-shadow: 0 3px 10px rgba(90, 40, 10, .15); }
+  50% { box-shadow: 0 0 0 5px rgba(217, 164, 65, .35); }
+}
+
 .tree-exit svg {
   width: 14px;
   height: 14px;
@@ -1730,6 +1872,60 @@ body.tree-fs .tree-exit { display: inline-flex; }
 .newslist li { transition: transform .15s, color .15s; }
 
 .newslist li:hover { transform: translateX(4px); }
+
+.newslist li { position: relative; }
+
+.n-actions {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 2;
+}
+
+.newslist li:hover .n-actions { opacity: 1; }
+
+.newslist li:hover .n-date { opacity: 0; }
+
+.n-btn {
+  border: none;
+  background: #f6e7c3;
+  border: 1px solid #e0c184;
+  color: #9a7b52;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.n-btn svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.n-btn:hover { color: #a5230f; background: #fdf3d7; }
+
+.n-btn.danger:hover { color: #a11c1c; background: #fde3e3; }
+
+.featured { position: relative; }
+
+.f-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 3;
+}
+
+.featured:hover .f-actions { opacity: 1; }
 
 .scroll-box li, .member-card, .d-link { transition: background .15s, color .15s, transform .15s, box-shadow .15s; }
 

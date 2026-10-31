@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Trương Gia Việt Nam - Gia phả dòng họ</title>
+<title>Trương Gia Việt Nam — Website nội bộ gia đình</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap">
@@ -14,7 +14,7 @@
 <div id="loginGate">
   <div class="login-card">
     <h1 class="site-title">TRƯƠNG GIA VIỆT NAM</h1>
-    <div class="login-sub">Gia phả · Thê hệ · Nét văn hóa họ Trương</div>
+    <div class="login-sub">Website nội bộ gia đình · Họ Trương (bố) · Họ Hoàng (mẹ)</div>
     <form id="loginForm" novalidate>
       <div class="field">
         <label for="loginUser">Tên đăng nhập</label>
@@ -27,13 +27,13 @@
       <div id="loginError" class="auth-error hidden"></div>
       <button type="submit" class="btn primary btn-login">Đăng nhập</button>
     </form>
-    <div class="login-note">Liên hệ quản trị viên để được cấp tài khoản.</div>
+    <div class="login-note">Dành cho thành viên trong gia đình — liên hệ quản trị viên để được cấp tài khoản.</div>
   </div>
 </div>
 
 <header class="site-banner">
   <h1 class="site-title">TRƯƠNG GIA VIỆT NAM</h1>
-  <div class="site-sub">Gia phả · Thê hệ · Nét văn hóa họ Trương</div>
+  <div class="site-sub">Website nội bộ gia đình · Họ Trương (bố) · Họ Hoàng (mẹ)</div>
   <div class="lantern l-left" aria-hidden="true"></div>
   <div class="lantern l-right" aria-hidden="true"></div>
 </header>
@@ -47,7 +47,10 @@
 </nav>
 
 <div class="utilbar">
-  <span id="datetime"></span>
+  <div class="clock-wrap">
+    <span id="datetime"></span>
+    <span id="lunarToday" class="lunar-today"></span>
+  </div>
   <div class="search-box">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <input id="searchInput" type="text" placeholder="Tìm tên hoặc năm sinh...">
@@ -98,6 +101,7 @@
       Thêm thành viên
     </button>
     <input type="file" id="importInput" accept=".json,.csv,application/json,text/csv,text/plain" hidden>
+    <input type="file" id="avaInput" accept="image/*" hidden>
   </div>
 </div>
 
@@ -134,17 +138,17 @@
     </aside>
 
     <main class="portal-center">
-      <div class="featured" id="homeFeatured"></div>
       <div class="promo-tree" data-goto="tree">
         <div class="pt-icon">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="4" r="2.4"/><circle cx="5" cy="19" r="2.4"/><circle cx="19" cy="19" r="2.4"/><path d="M12 6.5V12M12 12c-3.5 0-5.5 1.5-6 4.5M12 12c3.5 0 5.5 1.5 6 4.5M7.4 19h9.2"/></svg>
         </div>
         <div class="pt-main">
           <h4>Cây gia phả trực tuyến</h4>
-          <p>Sơ đồ các thế hệ họ Trương, thông tin từng thành viên — nhấn vào nhân vật để xem chi tiết, thu gọn từng nhánh.</p>
+          <p>Sơ đồ các thế hệ của gia đình — họ Trương (bên bố) và họ Hoàng (bên mẹ). Nhấn vào nhân vật để xem chi tiết, thu gọn từng nhánh.</p>
         </div>
         <span class="pt-go">Xem ngay →</span>
       </div>
+      <div class="featured" id="homeFeatured"></div>
       <div class="box">
         <h3>Thông báo gia tộc</h3>
         <ul class="newslist box-body" id="homeAnnouncements"></ul>
@@ -160,12 +164,12 @@
         <h3>Bài đăng gần đây</h3>
         <ul class="newslist box-body" id="homeRecent"></ul>
       </div>
-      <div class="box">
-        <h3>Sinh nhật</h3>
+      <div class="box" data-list="birthday">
+        <h3>Sinh nhật <span class="box-hint">Xem tất cả →</span></h3>
         <ul class="newslist box-body" id="homeBirthday"></ul>
       </div>
-      <div class="box">
-        <h3>Ngày giỗ</h3>
+      <div class="box" data-list="memorial">
+        <h3>Ngày giỗ <span class="box-hint">Xem tất cả →</span></h3>
         <ul class="newslist box-body" id="homeMemorial"></ul>
       </div>
       <div class="box">
@@ -178,6 +182,16 @@
 
 <div id="canvas">
   <div class="canvas-title">Cây gia phả họ Trương</div>
+  <div class="tree-tools admin-only">
+    <button class="btn sm" id="btnTreeReset" title="Bố cục lại như ban đầu (xóa mọi vị trí đã kéo)">
+      <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg>
+      Về mặc định
+    </button>
+    <button class="btn sm primary" id="btnTreeSave" title="Lưu vị trí các ô đã kéo">
+      <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+      Lưu bố cục
+    </button>
+  </div>
   <button class="tree-exit" id="btnExitFs" title="Quay lại giao diện thường (Esc)">
     <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
     Thoát toàn màn hình
@@ -390,6 +404,8 @@
         <div class="field">
           <label for="fDeath">Ngày / năm mất</label>
           <input id="fDeath" type="text" inputmode="numeric" placeholder="2005 hoặc 20/11/2005">
+          <label for="fDeathLunar" class="sub-label">Ngày giỗ (âm lịch)</label>
+          <input id="fDeathLunar" type="text" inputmode="numeric" placeholder="VD: 27/11">
         </div>
         <div class="field">
           <label>Ảnh đại diện</label>
@@ -460,6 +476,18 @@
     </div>
     <div id="postOvBody" class="post-body"></div>
     <div id="postOvComments" class="comments-wrap"></div>
+  </div>
+</div>
+
+<div id="listOverlay" class="hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="listTitle">Danh sách</h3>
+      <button class="icon-btn" id="btnCloseList">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="listBody" class="list-body"></div>
   </div>
 </div>
 

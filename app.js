@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'giapha-data-v4';
+  const STORAGE_KEY = 'giapha-data-v6';
   const NODE_W = 204, NODE_H = 92, COUPLE_GAP = 12, SIBLING_GAP = 30, LEVEL_GAP = 116, MARGIN = 240;
 
   const $ = (id) => document.getElementById(id);
@@ -11,7 +11,7 @@
     search: $('searchInput'), details: $('detailsPanel'), emptyState: $('emptyState'),
     zoomLabel: $('zoomLabel'), modalOverlay: $('modalOverlay'), modalTitle: $('modalTitle'),
     form: $('personForm'), fName: $('fName'), fGender: $('fGender'), fBirth: $('fBirth'),
-    fDeath: $('fDeath'), fPhoto: $('fPhoto'), btnPhoto: $('btnPhoto'), photoPreview: $('photoPreview'),
+    fDeath: $('fDeath'), fDeathLunar: $('fDeathLunar'), fPhoto: $('fPhoto'), btnPhoto: $('btnPhoto'), photoPreview: $('photoPreview'),
     fFather: $('fFather'), fMother: $('fMother'), fSpouses: $('fSpouses'), fNote: $('fNote'),
     fHometown: $('fHometown'), fJob: $('fJob'), fAddress: $('fAddress'), fPhone: $('fPhone'), fEmail: $('fEmail'),
     aPw1: $('aPw1'), aPw2: $('aPw2'), aPw: $('aPw'),
@@ -63,10 +63,19 @@
 
   function byId(id) { return people.find((p) => p.id === id) || null; }
 
+  function sibCompare(a, b) {
+    const oa = typeof a.ord === 'number' ? a.ord : null;
+    const ob = typeof b.ord === 'number' ? b.ord : null;
+    if (oa !== null && ob !== null && oa !== ob) return oa - ob;
+    if (oa !== null) return -1;
+    if (ob !== null) return 1;
+    return String(a.birth || '').localeCompare(String(b.birth || ''), undefined, { numeric: true });
+  }
+
   function childrenOf(id) {
     return people
       .filter((p) => (p.parents || []).includes(id))
-      .sort((a, b) => String(a.birth || '').localeCompare(String(b.birth || ''), undefined, { numeric: true }));
+      .sort(sibCompare);
   }
 
   function descendantIds(id, acc) {
@@ -113,6 +122,227 @@
     return { date: date, days: Math.round((date - startOfDay(now)) / 86400000) };
   }
 
+  // ===== Lịch âm (thuật toán Hồ Ngọc Đức, múi giờ +7) =====
+  const LUNAR_TZ = 7.0;
+
+  function jdFromDate(dd, mm, yy) {
+    const a = Math.floor((14 - mm) / 12);
+    const y = yy + 4800 - a;
+    const m = mm + 12 * a - 3;
+    let jd = dd + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+    if (jd < 2299161) jd = dd + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - 32083;
+    return jd;
+  }
+
+  function jdToDate(jd) {
+    let a, b, c, d, e, m, day, month, year;
+    if (jd > 2299160) {
+      a = jd + 32044;
+      b = Math.floor((4 * a + 3) / 146097);
+      c = a - Math.floor((b * 146097) / 4);
+    } else {
+      b = 0;
+      c = jd + 32082;
+    }
+    d = Math.floor((4 * c + 3) / 1461);
+    e = c - Math.floor((1461 * d) / 4);
+    m = Math.floor((5 * e + 2) / 153);
+    day = e - Math.floor((153 * m + 2) / 5) + 1;
+    month = m + 3 - 12 * Math.floor(m / 10);
+    year = b * 100 + d - 4800 + Math.floor(m / 10);
+    return [day, month, year];
+  }
+
+  function newMoon(k) {
+    const T = k / 1236.85, T2 = T * T, T3 = T2 * T, dr = Math.PI / 180;
+    let Jd1 = 2415020.75933 + 29.53058868 * k + 0.0001178 * T2 - 0.000000155 * T3;
+    Jd1 += 0.00033 * Math.sin(dr * (166.56 + 132.87 * T - 0.009173 * T2));
+    const M = 359.2242 + 29.10535608 * k - 0.0000333 * T2 - 0.00000347 * T3;
+    const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 0.00001236 * T3;
+    const F = 21.2964 + 390.67050646 * k - 0.0016528 * T2 - 0.00000239 * T3;
+    let C1 = (0.1734 - 0.000393 * T) * Math.sin(dr * M) + 0.0021 * Math.sin(dr * 2 * M);
+    C1 -= 0.4068 * Math.sin(dr * Mpr) + 0.0161 * Math.sin(dr * 2 * Mpr);
+    C1 -= 0.0004 * Math.sin(dr * 3 * Mpr);
+    C1 += 0.0104 * Math.sin(dr * 2 * F) - 0.0051 * Math.sin(dr * (M + Mpr));
+    C1 -= 0.0074 * Math.sin(dr * (M - Mpr)) + 0.0004 * Math.sin(dr * (2 * F + M));
+    C1 -= 0.0004 * Math.sin(dr * (2 * F - M)) - 0.0006 * Math.sin(dr * (2 * F + Mpr));
+    C1 += 0.001 * Math.sin(dr * (2 * F - Mpr)) + 0.0005 * Math.sin(dr * (2 * Mpr + M));
+    let deltat;
+    if (T < -11) deltat = 0.001 + 0.000839 * T + 0.0002261 * T2 - 0.00000845 * T3 - 0.000000081 * T * T3;
+    else deltat = -0.000278 + 0.000265 * T + 0.000262 * T2;
+    return Jd1 + C1 - deltat;
+  }
+
+  function sunLongitude(jdn) {
+    const T = (jdn - 2451545.0) / 36525, T2 = T * T, dr = Math.PI / 180;
+    const M = 357.52910 + 35999.05030 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
+    const L0 = 280.46645 + 36000.76983 * T + 0.0003032 * T2;
+    let DL = (1.914600 - 0.004817 * T - 0.000014 * T2) * Math.sin(dr * M);
+    DL += (0.019993 - 0.000101 * T) * Math.sin(dr * 2 * M) + 0.000290 * Math.sin(dr * 3 * M);
+    let L = (L0 + DL) * dr;
+    L -= Math.PI * 2 * Math.floor(L / (Math.PI * 2));
+    return (L / Math.PI) * 6;
+  }
+
+  function getNewMoonDay(k) { return Math.floor(newMoon(k) + 0.5 + LUNAR_TZ / 24); }
+
+  function getLunarMonth11(yy) {
+    const off = jdFromDate(31, 12, yy) - 2415021;
+    let k = Math.floor(off / 29.530588853);
+    let nm = getNewMoonDay(k);
+    if (sunLongitude(nm) >= 9) nm = getNewMoonDay(k - 1);
+    return nm;
+  }
+
+  function getLeapMonthOffset(a11) {
+    const k = Math.floor((a11 - 2415021.076998695) / 29.530588853);
+    let i = 1, last = 0, arc;
+    arc = sunLongitude(getNewMoonDay(k + i));
+    do {
+      last = arc;
+      i++;
+      arc = sunLongitude(getNewMoonDay(k + i));
+    } while (arc !== last && i < 14);
+    return i - 1;
+  }
+
+  function solar2Lunar(dd, mm, yy) {
+    const dayNumber = jdFromDate(dd, mm, yy);
+    const k = Math.floor((dayNumber - 2415021.076998695) / 29.530588853);
+    let monthStart = getNewMoonDay(k + 1);
+    if (monthStart > dayNumber) monthStart = getNewMoonDay(k);
+    let a11 = getLunarMonth11(yy);
+    const b11 = a11;
+    let lunarYear;
+    if (a11 >= monthStart) {
+      lunarYear = yy;
+      a11 = getLunarMonth11(yy - 1);
+    } else {
+      lunarYear = yy + 1;
+      a11 = getLunarMonth11(yy + 1);
+    }
+    const lunarDay = dayNumber - monthStart + 1;
+    const diff = Math.floor((monthStart - a11) / 29);
+    let lunarLeap = 0;
+    let lunarMonth = diff + 11;
+    if (b11 - a11 > 365) {
+      const leapOff = getLeapMonthOffset(a11);
+      const leapMonth = leapOff - 2 < 0 ? leapOff + 10 : leapOff - 2;
+      if (lunarMonth !== leapMonth) lunarLeap = 0;
+      else lunarLeap = 1;
+    }
+    if (lunarMonth > 12) lunarMonth -= 12;
+    if (lunarMonth >= 11 && diff < 4) lunarYear -= 1;
+    return { d: lunarDay, m: lunarMonth, y: lunarYear, leap: lunarLeap };
+  }
+
+  function lunar2Solar(ld, lm, ly, leap) {
+    let a11, b11;
+    if (lm < 11) {
+      a11 = getLunarMonth11(ly - 1);
+      b11 = getLunarMonth11(ly);
+    } else {
+      a11 = getLunarMonth11(ly);
+      b11 = getLunarMonth11(ly + 1);
+    }
+    const k = Math.floor(0.5 + (a11 - 2415021.076998695) / 29.530588853);
+    let off = lm - 11;
+    if (off < 0) off += 12;
+    if (b11 - a11 > 365) {
+      const leapOff = getLeapMonthOffset(a11);
+      const leapMonth = leapOff - 2 < 0 ? leapOff + 10 : leapOff - 2;
+      if (leap && lm !== leapMonth) return null;
+      if (leap || off >= leapOff) off += 1;
+    }
+    const monthStart = getNewMoonDay(k + off);
+    const dt = jdToDate(monthStart + ld - 1);
+    return { d: dt[0], m: dt[1], y: dt[2] };
+  }
+
+  function parseLunarStr(s) {
+    const m = String(s || '').trim().match(/^(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})(?:\s*[\/\-\.]\s*(\d{2,4}))?$/);
+    if (!m) return null;
+    const d = parseInt(m[1], 10), mo = parseInt(m[2], 10);
+    if (d < 1 || d > 30 || mo < 1 || mo > 12) return null;
+    return { d: d, mo: mo, y: m[3] ? parseInt(m[3], 10) : null };
+  }
+
+  function currentLunarYear() {
+    const now = new Date();
+    return solar2Lunar(now.getDate(), now.getMonth() + 1, now.getFullYear()).y;
+  }
+
+  // Ngày dương của ngày âm (mo/d) thuộc NĂM ÂM LỊCH hiện tại
+  function lunarDateThisYear(mo, d) {
+    const r = lunar2Solar(d, mo, currentLunarYear(), 0);
+    return r ? new Date(r.y, r.m - 1, r.d) : null;
+  }
+
+  // Kỳ âm lịch tiếp theo tính từ hôm nay
+  function nextLunarOccurrence(mo, d) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let s = lunarDateThisYear(mo, d);
+    if (!s || s < today) {
+      const r = lunar2Solar(d, mo, currentLunarYear() + 1, 0);
+      s = r ? new Date(r.y, r.m - 1, r.d) : s;
+    }
+    return s;
+  }
+
+  function lunarOcc(mo, d) {
+    const dt = nextLunarOccurrence(mo, d);
+    if (!dt) return null;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { date: dt, days: Math.round((dt - today) / 86400000) };
+  }
+
+  // Thông tin ngày giỗ của thành viên (ưu tiên ngày giỗ âm lịch)
+  function memorialInfo(p) {
+    const gl = p.deathLunar ? parseLunarStr(p.deathLunar) : null;
+    if (gl) return { mo: gl.mo, d: gl.d, lunar: true };
+    const dd = parseDate(p.death);
+    if (dd && dd.mo && dd.d) return { mo: dd.mo, d: dd.d, lunar: false };
+    return null;
+  }
+
+  // Kỳ giỗ dòng họ (người ngoài cây gia phả) — ngày âm lịch
+  const FAMILY_GIO = [
+    { name: 'Bà nội (của mẹ)', lunar: '22/1' },
+    { name: 'Ông nội (của ba)', lunar: '2/2' },
+    { name: 'Tế Xuân (Tộc Hoàng)', lunar: '6/2' },
+    { name: 'Thầy Toàn', lunar: '11/2' },
+    { name: 'Cô Đốc', lunar: '3/3' },
+    { name: 'Giỗ Cô (Hoàng Diệu)', lunar: '8/3' },
+    { name: 'Bà ngoại (mẹ của mẹ)', lunar: '12/3' },
+    { name: 'Dì Hoa', lunar: '19/6' },
+    { name: 'Bà nội (mẹ của Ba)', lunar: '10/8' },
+    { name: 'Bà ngoại (của mẹ)', lunar: '29/8' },
+    { name: 'Ông nội (ba của ba)', lunar: '9/9' },
+    { name: 'Bà nội (của ba)', lunar: '6/10' },
+    { name: 'Ông Xu (cậu của mẹ)', lunar: '26/10' },
+    { name: 'Ông ngoại (ba của mẹ)', lunar: '4/12' },
+    { name: 'Ông ngoại (của mẹ)', lunar: '12/12' }
+  ];
+
+  function familyGiEvents() {
+    const arr = [];
+    FAMILY_GIO.forEach((f, i) => {
+      const lm = parseLunarStr(f.lunar);
+      if (!lm) return;
+      const o = lunarOcc(lm.mo, lm.d);
+      if (!o) return;
+      arr.push({
+        type: 'memorial', family: true, famName: f.name, famLunar: f.lunar,
+        days: o.days, date: o.date, person: { id: 'fam-' + i, name: f.name, gender: null, photo: null }
+      });
+    });
+    return arr;
+  }
+
+  function isFamilyEvent(e) { return !!e.family; }
+
   function upcomingEvents() {
     const evts = [];
     people.forEach((p) => {
@@ -124,11 +354,14 @@
           evts.push({ type: 'birthday', days: o.days, date: o.date, person: p, age: by ? o.date.getFullYear() - by : null });
         }
       }
-      const dd = parseDate(p.death);
-      if (dd && dd.mo && dd.d) {
-        const o = nextOccurrence(dd.mo, dd.d);
-        if (o.days <= 30) evts.push({ type: 'memorial', days: o.days, date: o.date, person: p });
+      const mi = memorialInfo(p);
+      if (mi) {
+        const o = mi.lunar ? lunarOcc(mi.mo, mi.d) : nextOccurrence(mi.mo, mi.d);
+        if (o && o.days <= 30) evts.push({ type: 'memorial', lunar: mi.lunar, days: o.days, date: o.date, person: p });
       }
+    });
+    familyGiEvents().forEach((e) => {
+      if (e.days <= 30) evts.push(e);
     });
     return evts.sort((a, b) => a.days - b.days);
   }
@@ -155,19 +388,19 @@
       ...(extra || {})
     });
     return [
-      mk('tbang', 'Trương Đình Bảng', 'm', '26/03/1944', '', [], ['llechi'], 'Ông nội', {}),
-      mk('llechi', 'Hoàng Thị Lệ Chi', 'f', '26/03/1944', '10/01/2021', [], ['tbang'], 'Bà nội', {}),
-      mk('tdung', 'Trương Hoàng Dung', 'f', '', '', ['tbang', 'llechi'], ['pdnhiem'], 'Con ruột 1', {}),
-      mk('pdnhiem', 'Phạm Đình Nhiệm', 'm', '', '', [], ['tdung'], 'Chồng chị 1', {}),
+      mk('tbang', 'Trương Đình Bảng', 'm', '26/03/1945', '', [], ['llechi'], 'Ông nội', {}),
+      mk('llechi', 'Hoàng Thị Lệ Chi', 'f', '26/03/1945', '10/01/2021', [], ['tbang'], 'Bà nội', { deathLunar: '27/11' }),
+      mk('tdung', 'Trương Hoàng Dung', 'f', '18/2', '', ['tbang', 'llechi'], ['pdnhiem'], 'Con ruột 1', { ord: 1 }),
+      mk('pdnhiem', 'Phạm Đình Nhiệm', 'm', '17/03/1971', '', [], ['tdung'], 'Chồng chị 1', {}),
       mk('pcuong', 'Phạm Minh Cường', 'm', '08/10/2000', '', ['pdnhiem', 'tdung'], [], 'Con 1 chị 1', {}),
-      mk('pnhann', 'Phạm Thùy Nhàn', 'f', '', '', ['pdnhiem', 'tdung'], [], 'Con 2 chị 1', {}),
-      mk('tnguyen', 'Trương Hoàng Nguyên', 'm', '', '', ['tbang', 'llechi'], ['ldiem'], 'Con ruột 2', {}),
-      mk('ldiem', 'Lê Quang Ánh Diễm', 'f', '', '', [], ['tnguyen'], 'Vợ trai 2', {}),
-      mk('tbach', 'Trương Lê Bách', 'm', '', '', ['tnguyen', 'ldiem'], [], 'Con 1 trai 2', {}),
-      mk('thuydung', 'Trương Hoàng Thùy Dung', 'f', '', '', ['tbang', 'llechi'], ['dcuong'], 'Con ruột 3', {}),
-      mk('dcuong', 'Đặng Đức Cương', 'm', '', '', [], ['thuydung'], 'Chồng con 3', {}),
-      mk('dkhoi', 'Đặng Đức Khôi', 'm', '', '', ['dcuong', 'thuydung'], [], 'Con 1 chị 3', {}),
-      mk('tloc', 'Trương Hoàng Lộc', 'm', '19/02/1985', '', ['tbang', 'llechi'], ['thoai'], 'Con ruột 4', {}),
+      mk('pnhann', 'Phạm Thùy Nhàn', 'f', '22/05/2004', '', ['pdnhiem', 'tdung'], [], 'Con 2 chị 1', {}),
+      mk('tnguyen', 'Trương Hoàng Nguyên', 'm', '12/2', '', ['tbang', 'llechi'], ['ldiem'], 'Con ruột 2', { ord: 2 }),
+      mk('ldiem', 'Lê Quang Ánh Diễm', 'f', '16/04/1972', '', [], ['tnguyen'], 'Vợ trai 2', {}),
+      mk('tbach', 'Trương Lê Bách', 'm', '19/08/2002', '', ['tnguyen', 'ldiem'], [], 'Con 1 trai 2', {}),
+      mk('thuydung', 'Trương Hoàng Thùy Dung', 'f', '23/03/1975', '', ['tbang', 'llechi'], ['dcuong'], 'Con ruột 3', { ord: 3 }),
+      mk('dcuong', 'Đặng Đức Cương', 'm', '23/05/1974', '', [], ['thuydung'], 'Chồng con 3', {}),
+      mk('dkhoi', 'Đặng Đức Khôi', 'm', '23/08/2003', '', ['dcuong', 'thuydung'], [], 'Con 1 chị 3', {}),
+      mk('tloc', 'Trương Hoàng Lộc', 'm', '19/02/1985', '', ['tbang', 'llechi'], ['thoai'], 'Con ruột 4', { ord: 4 }),
       mk('thoai', 'Nguyễn Thị Thúy Hoài', 'f', '16/06/1985', '', [], ['tloc'], 'Vợ trai 4', {}),
       mk('tkhoa', 'Trương Đăng Khoa', 'm', '19/05/2014', '', ['tloc', 'thoai'], [], 'Con 1 trai 4', {}),
       mk('than', 'Trương Hoàng Hoài An', 'f', '10/01/2022', '', ['tloc', 'thoai'], [], 'Con 2 trai 4', {})
@@ -176,12 +409,15 @@
 
   function sampleAnnouncements() {
     const now = Date.now();
-    const mk = (id, title, date, content, days) => ({
+    const mk = (id, title, date, content, days, photos) => ({
       id: id, title: title, date: date, content: content,
-      photo: null, author: 'Admin', authorName: 'Quản trị viên',
+      photo: null,
+      photos: Array.isArray(photos) ? photos : [],
+      author: 'Admin', authorName: 'Quản trị viên',
       createdAt: now - days * 86400000
     });
     return [
+      mk('ann-open', 'Chào mừng đến với website nội bộ gia đình', '', 'Trang nhà riêng của đại gia đình ông Trương Đình Bảng (họ Trương — bên bố) và bà Hoàng Thị Lệ Chi (họ Hoàng — bên mẹ), dành để lưu giữ gia phả các thế hệ, nhắc sinh nhật — ngày giỗ, chia sẻ thông báo và hình ảnh của các nhánh. Thành viên đăng nhập bằng tài khoản do quản trị viên cấp. Ai có tin tức, hình ảnh mới xin gửi về Ban quản trị để đăng lên.', 1, ['img/gia-dinh-1.jpg', 'img/gia-dinh-2.jpg']),
       mk('ann-sample-1', 'Lễ giỗ tổ Trương Gia', isoInDays(9), 'Toàn thể dòng họ tề tựu tại nhà thờ họ lúc 10 giờ. Các nhánh chuẩn bị hương hoa, trầu quả đầy đủ.', 2),
       mk('ann-sample-2', 'Quỹ tu sửa nhà thờ họ', '', 'Mỗi nhánh đóng góp tùy khả năng, xin gửi về Ban quản trị gia tộc trước ngày 15 để thống nhất danh sách.', 5),
       mk('ann-sample-3', 'Cập nhật danh sách liên lạc đại gia đình', '', 'Mỗi hộ xin gửi số điện thoại, địa chỉ hiện tại về Zalo nhóm Trương Gia Family trước cuối tháng.', 8)
@@ -289,7 +525,8 @@
       }));
       const kids = collapsed.has(id) ? [] : Array.from(kidSet)
         .map((kid) => byId(kid))
-        .sort((a, b) => String(a.birth || '').localeCompare(String(b.birth || ''), undefined, { numeric: true }))
+        .filter(Boolean)
+        .sort(sibCompare)
         .map((k) => build(k.id, depth + 1))
         .filter(Boolean);
 
@@ -792,6 +1029,9 @@
     if (name === 'tree') fitView();
   }
 
+  const LUNAR_CAN = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'];
+  const LUNAR_CHI = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'];
+
   function tickClock() {
     const d = new Date();
     const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
@@ -799,6 +1039,12 @@
     const date = days[d.getDay()] + ', ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
     const c = $('datetime');
     if (c) c.textContent = clock + ' ICT · ' + date;
+    const lc = $('lunarToday');
+    if (lc) {
+      const lun = solar2Lunar(d.getDate(), d.getMonth() + 1, d.getFullYear());
+      const canChi = LUNAR_CAN[(lun.y + 6) % 10] + ' ' + LUNAR_CHI[(lun.y + 8) % 12];
+      lc.textContent = 'Âm lịch: ' + lun.d + '/' + lun.m + (lun.leap ? ' (nhuận)' : '') + ' · năm ' + canChi;
+    }
   }
 
   function nextOccurrences(limit) {
@@ -809,25 +1055,106 @@
         const o = nextOccurrence(b.mo, b.d);
         arr.push({ kind: 'birthday', person: p, days: o.days, date: o.date, y: b.y });
       }
-      const dd = parseDate(p.death);
-      if (dd && dd.mo && dd.d) {
-        const o = nextOccurrence(dd.mo, dd.d);
-        arr.push({ kind: 'memorial', person: p, days: o.days, date: o.date, y: dd.y });
+      const mi = memorialInfo(p);
+      if (mi) {
+        const o = mi.lunar ? lunarOcc(mi.mo, mi.d) : nextOccurrence(mi.mo, mi.d);
+        if (o) arr.push({ kind: 'memorial', lunar: mi.lunar, person: p, days: o.days, date: o.date, y: parseYear(p.death) });
       }
+    });
+    familyGiEvents().forEach((e) => {
+      arr.push({ kind: 'memorial', family: true, famName: e.famName, famLunar: e.famLunar, person: e.person, days: e.days, date: e.date, y: null });
     });
     return arr.sort((a, b) => a.days - b.days).slice(0, limit);
   }
 
+  function fullBirthdayRows() {
+    const arr = [];
+    people.forEach((p) => {
+      const b = parseDate(p.birth);
+      if (b && b.mo && b.d && !isDeceased(p)) {
+        const o = nextOccurrence(b.mo, b.d);
+        arr.push({ id: p.id, name: p.name, sub: 'Sinh: ' + (b.d + '/' + b.mo) + (b.y ? '/' + b.y : ''), lunar: null, days: o.days, dl: o.date });
+      }
+    });
+    return arr.sort((a, b) => a.days - b.days);
+  }
+
+  function fullMemorialRows() {
+    const arr = [];
+    people.forEach((p) => {
+      const mi = memorialInfo(p);
+      if (mi) {
+        const o = mi.lunar ? lunarOcc(mi.mo, mi.d) : nextOccurrence(mi.mo, mi.d);
+        if (o) arr.push({
+          id: p.id, name: p.name,
+          sub: mi.lunar ? 'Ngày giỗ (âm lịch): ' + mi.d + '/' + mi.mo : 'Ngày mất: ' + formatDateVN(p.death),
+          lunar: mi.lunar ? mi.d + '/' + mi.mo : null, days: o.days, dl: o.date
+        });
+      }
+    });
+    familyGiEvents().forEach((e) => {
+      arr.push({ id: null, name: e.famName, sub: 'Giỗ họ (âm lịch): ' + (e.famLunar || ''), lunar: e.famLunar, days: e.days, dl: e.date });
+    });
+    return arr.sort((a, b) => a.days - b.days);
+  }
+
+  function listRowHtml(r) {
+    const dl = r.dl.getDate() + '/' + (r.dl.getMonth() + 1);
+    const when = r.days === 0 ? 'Hôm nay' : 'còn ' + r.days + ' ngày';
+    return '<div class="ll-row' + (r.id ? ' clickable' : '') + '"' + (r.id ? ' data-person="' + r.id + '"' : '') + '>' +
+      '<div class="ll-main">' +
+        '<div class="ll-name">' + esc(r.name) + (r.lunar ? ' <em class="lunar-note">(' + esc(r.lunar) + ' AL)</em>' : '') + '</div>' +
+        '<div class="ll-sub">' + esc(r.sub) + '</div>' +
+      '</div>' +
+      '<div class="ll-date"><b>' + dl + '</b><span>' + when + '</span></div>' +
+    '</div>';
+  }
+
+  function openListOverlay(kind) {
+    const isB = kind === 'birthday';
+    $('listTitle').textContent = isB ? 'Sinh nhật — toàn bộ danh sách' : 'Ngày giỗ — toàn bộ danh sách';
+    const rows = isB ? fullBirthdayRows() : fullMemorialRows();
+    $('listBody').innerHTML = rows.length
+      ? rows.map(listRowHtml).join('')
+      : '<div class="bell-empty">Chưa có dữ liệu.</div>';
+    $('listOverlay').classList.remove('hidden');
+  }
+
+  function closeListOverlay() {
+    $('listOverlay').classList.add('hidden');
+  }
+
   function renderHome() {
     const feat = announcements[0];
+    const featCtl = feat && ownsAnn(feat)
+      ? '<div class="f-actions">' +
+          '<button class="n-btn" data-ann-edit="' + feat.id + '" title="Sửa thông báo">' + ICONS.pencil + '</button>' +
+          '<button class="n-btn danger" data-ann-del="' + feat.id + '" title="Xóa thông báo">' + ICONS.trash + '</button>' +
+        '</div>'
+      : '';
     $('homeFeatured').innerHTML = feat
-      ? '<h2>' + esc(feat.title) + '</h2>' +
+      ? featCtl +
+        '<h2>' + esc(feat.title) + '</h2>' +
         '<div class="f-meta">' + (feat.date ? 'Ngày ' + esc(formatDateVN(feat.date)) : 'Thông báo mới') + (feat.authorName ? ' · ' + esc(feat.authorName) : '') + '</div>' +
-        (feat.photo ? '<img class="f-photo" src="' + esc(feat.photo) + '" alt="">' : '') +
+        (function () {
+          const gal = [];
+          if (feat.photo) gal.push(feat.photo);
+          (feat.photos || []).forEach((u) => { if (u && gal.indexOf(u) < 0) gal.push(u); });
+          if (!gal.length) return '';
+          return '<div class="f-gallery">' + gal.map((u) =>
+            '<img src="' + esc(u) + '" alt="" onerror="this.style.display=\'none\'">'
+          ).join('') + '</div>';
+        })() +
         (feat.content ? '<p>' + esc(feat.content) + '</p>' : '')
-      : '<h2>Chào mừng đến với Trương Gia Việt Nam</h2>' +
-        '<p>Nơi lưu giữ gia phả, thê hệ và những tin tức của dòng họ họ Trương. Quản trị viên đăng nhập để cập nhật nội dung.</p>';
-    const annItem = (a) => '<li data-goto="month"><span>' + esc(a.title) + '</span><span class="n-date">' + (a.date ? esc(formatDateVN(a.date)) : '') + '</span></li>';
+      : '<h2>Website nội bộ gia đình họ Trương</h2>' +
+        '<p>Trang nhà riêng của đại gia đình ông Trương Đình Bảng (họ Trương — bên bố) và bà Hoàng Thị Lệ Chi (họ Hoàng — bên mẹ). Đăng nhập để xem cây gia phả, sinh nhật — ngày giỗ và thông báo của các nhánh.</p>';
+    const annCtl = (a) => ownsAnn(a)
+      ? '<span class="n-actions">' +
+          '<button class="n-btn" data-ann-edit="' + a.id + '" title="Sửa thông báo">' + ICONS.pencil + '</button>' +
+          '<button class="n-btn danger" data-ann-del="' + a.id + '" title="Xóa thông báo">' + ICONS.trash + '</button>' +
+        '</span>'
+      : '';
+    const annItem = (a) => '<li data-goto="month">' + annCtl(a) + '<span>' + esc(a.title) + '</span><span class="n-date">' + (a.date ? esc(formatDateVN(a.date)) : '') + '</span></li>';
     $('homeAnnouncements').innerHTML = announcements.length
       ? announcements.slice(0, 6).map(annItem).join('')
       : '<li class="empty"><span>Chưa có thông báo nào.</span></li>';
@@ -839,22 +1166,28 @@
       ? evts.slice(0, 6).map((e) =>
           '<li data-person="' + e.person.id + '"><span>' +
           (e.type === 'birthday' ? 'Sinh nhật ' : 'Ngày giỗ ') + esc(e.person.name) +
-          '</span><span class="n-date">' + (e.days === 0 ? 'Hôm nay' : 'còn ' + e.days + ' ngày') + '</span></li>'
+          '</span><span class="n-date">' + (e.days === 0
+            ? 'Hôm nay · ' + e.date.getDate() + '/' + (e.date.getMonth() + 1)
+            : 'còn ' + e.days + ' ngày · ' + e.date.getDate() + '/' + (e.date.getMonth() + 1)) + '</span></li>'
         ).join('')
       : '<li class="empty"><span>Không có sự kiện nào trong 30 ngày tới.</span></li>';
-    const nexts = nextOccurrences(10);
+    const nowD = new Date();
+    const endNext = new Date(nowD.getFullYear(), nowD.getMonth() + 2, 1);
+    const nexts = nextOccurrences(50).filter((e) => e.date < endNext);
     const evItem = (e) =>
-      '<li data-person="' + e.person.id + '"><span>' +
-      esc(e.person.name) +
+      '<li' + (e.family ? '' : ' data-person="' + e.person.id + '"') + '><span>' +
+      (e.family
+        ? 'Kỳ giỗ: ' + esc(e.famName) + ' <em class="lunar-note">(' + esc(e.famLunar || '') + ' AL)</em>'
+        : (e.kind === 'memorial' && e.lunar ? 'Giỗ ' + esc(e.person.name) + ' <em class="lunar-note">(' + esc((e.person.deathLunar || '').trim()) + ' AL)</em>' : esc(e.person.name))) +
       '</span><span class="n-date">' + (e.days === 0 ? 'Hôm nay' : e.date.getDate() + '/' + (e.date.getMonth() + 1)) + '</span></li>';
     const bdays = nexts.filter((e) => e.kind === 'birthday');
     const memos = nexts.filter((e) => e.kind === 'memorial');
     $('homeBirthday').innerHTML = bdays.length
       ? bdays.map(evItem).join('')
-      : '<li class="empty"><span>Chưa có dữ liệu sinh nhật.</span></li>';
+      : '<li class="empty"><span>Không có sinh nhật nào trong 2 tháng tới.</span></li>';
     $('homeMemorial').innerHTML = memos.length
       ? memos.map(evItem).join('')
-      : '<li class="empty"><span>Chưa có dữ liệu ngày giỗ.</span></li>';
+      : '<li class="empty"><span>Không có ngày giỗ nào trong 2 tháng tới.</span></li>';
     const male = people.filter((p) => p.gender === 'm').length;
     const female = people.filter((p) => p.gender === 'f').length;
     const passed = people.filter((p) => parseYear(p.death)).length;
@@ -933,11 +1266,36 @@
         if (b.mo === mo) list.thisMonth.push({ kind: 'birthday', person: p, day: b.d, y: b.y });
         else if (b.mo === nextMo) list.nextMonth.push({ kind: 'birthday', person: p, day: b.d, y: b.y });
       }
-      const dd = parseDate(p.death);
-      if (dd && dd.mo && dd.d) {
-        if (dd.mo === mo) list.thisMonth.push({ kind: 'memorial', person: p, day: dd.d, y: dd.y });
-        else if (dd.mo === nextMo) list.nextMonth.push({ kind: 'memorial', person: p, day: dd.d, y: dd.y });
+      const mi = memorialInfo(p);
+      if (mi) {
+        if (mi.lunar) {
+          const occ = lunarDateThisYear(mi.mo, mi.d);
+          if (occ) {
+            const om = occ.getMonth() + 1;
+            const item = { kind: 'memorial', lunar: true, person: p, day: occ.getDate(), y: parseYear(p.death) };
+            if (om === mo) list.thisMonth.push(item);
+            else if (om === nextMo) list.nextMonth.push(item);
+          }
+        } else {
+          const dd = parseDate(p.death);
+          if (dd.mo === mo) list.thisMonth.push({ kind: 'memorial', person: p, day: dd.d, y: dd.y });
+          else if (dd.mo === nextMo) list.nextMonth.push({ kind: 'memorial', person: p, day: dd.d, y: dd.y });
+        }
       }
+    });
+    FAMILY_GIO.forEach((f, i) => {
+      const lm = parseLunarStr(f.lunar);
+      if (!lm) return;
+      const occ = lunarDateThisYear(lm.mo, lm.d);
+      if (!occ) return;
+      const om = occ.getMonth() + 1;
+      const item = {
+        kind: 'memorial', family: true, famName: f.name, famLunar: f.lunar,
+        person: { id: 'fam-' + i, name: f.name, gender: null, photo: null },
+        day: occ.getDate(), y: null
+      };
+      if (om === mo) list.thisMonth.push(item);
+      else if (om === nextMo) list.nextMonth.push(item);
     });
     list.thisMonth.sort((a, b) => a.day - b.day);
     list.nextMonth.sort((a, b) => a.day - b.day);
@@ -947,7 +1305,7 @@
   function eventItemHtml(e, now) {
     const g = GENDER[e.person.gender] || GENDER.o;
     const todayD = now.getDate();
-    let when;
+    let when, solarTxt = '';
     if (e.scope === 'this') {
       when = e.day >= todayD
         ? (e.day === todayD ? 'Hôm nay!' : (e.day - todayD === 1 ? 'Ngày mai' : 'còn ' + (e.day - todayD) + ' ngày'))
@@ -955,10 +1313,26 @@
     } else {
       const o = nextOccurrence(e.mo, e.day);
       when = o.days === 0 ? 'Hôm nay!' : 'còn ' + o.days + ' ngày';
+      if (e.family || e.lunar) solarTxt = ' · Dương lịch ' + o.date.getDate() + '/' + (o.date.getMonth() + 1);
     }
-    const title = e.kind === 'birthday'
-      ? 'Sinh nhật ' + esc(e.person.name) + (e.y ? ' (tròn ' + (now.getFullYear() - e.y) + ' tuổi)' : '')
-      : 'Ngày giỗ của ' + esc(e.person.name) + (e.y ? ' (tròn ' + (now.getFullYear() - e.y) + ' năm)' : '');
+    let title;
+    if (e.kind === 'birthday') {
+      title = 'Sinh nhật ' + esc(e.person.name) + (e.y ? ' (tròn ' + (now.getFullYear() - e.y) + ' tuổi)' : '');
+    } else if (e.family) {
+      title = 'Kỳ giỗ: ' + esc(e.famName) + ' <span class="lunar-chip">' + esc(e.famLunar || '') + ' âm lịch</span>';
+    } else {
+      title = 'Ngày giỗ của ' + esc(e.person.name) +
+        (e.lunar ? ' <span class="lunar-chip">' + esc((e.person.deathLunar || '').trim()) + ' âm lịch</span>' : '') +
+        (e.y ? ' (tròn ' + (now.getFullYear() - e.y) + ' năm)' : '');
+    }
+    if (e.family) {
+      return '<div class="mb-item">' +
+        '<div class="mb-day"><b>' + e.day + '</b><span>/' + e.mo + '</span></div>' +
+        '<div class="bi-avatar other">✦</div>' +
+        '<div class="bi-main"><div class="bi-title">' + title + '</div>' +
+        '<div class="bi-sub">' + when + ' (âm lịch)' + solarTxt + '</div></div>' +
+      '</div>';
+    }
     const avatar = e.person.photo
       ? '<img src="' + esc(e.person.photo) + '" alt="">'
       : esc((e.person.name || '?').charAt(0).toUpperCase());
@@ -966,7 +1340,7 @@
       '<div class="mb-day"><b>' + e.day + '</b><span>/' + e.mo + '</span></div>' +
       '<div class="bi-avatar ' + g.cls + '">' + avatar + '</div>' +
       '<div class="bi-main"><div class="bi-title">' + title + '</div>' +
-      '<div class="bi-sub">' + when + '</div></div>' +
+      '<div class="bi-sub">' + when + (e.lunar ? ' (âm lịch)' : '') + solarTxt + '</div></div>' +
     '</div>';
   }
 
@@ -997,7 +1371,7 @@
         : '';
       return '<div class="mb-item">' +
         '<div class="mb-ann-date">' + (a.date ? esc(formatDateVN(a.date)) : '—') + (inMonth(a) ? '<span class="mb-chip">Tháng này</span>' : '') + '</div>' +
-        (a.photo ? '<img class="ann-photo" src="' + esc(a.photo) + '" alt="">' : '') +
+        (annFirstPhoto(a) ? '<img class="ann-photo" src="' + esc(annFirstPhoto(a)) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
         '<div class="bi-main">' +
           '<div class="bi-title">' + esc(a.title) + '</div>' +
           '<div class="bi-sub">' + esc(a.authorName || a.author || 'Ban quản trị') + '</div>' +
@@ -1052,7 +1426,7 @@
     const s = Math.min((r.width - pad * 2) / lastBBox.w, (r.height - pad * 2) / lastBBox.h, 1.2);
     view.scale = Math.max(0.15, isFinite(s) && s > 0 ? s : 1);
     view.x = (r.width - lastBBox.w * view.scale) / 2 - lastBBox.x * view.scale;
-    view.y = (r.height - lastBBox.h * view.scale) / 2 - lastBBox.y * view.scale;
+    view.y = pad - lastBBox.y * view.scale;
     applyTransform();
     updateZoomLabel();
   }
@@ -1104,7 +1478,17 @@
       (p.email ? '<a class="d-row link" href="mailto:' + esc(p.email) + '"><span>Email</span><b>' + esc(p.email) + '</b></a>' : '');
     const dateRows =
       (parseDate(p.birth) && parseDate(p.birth).d ? rowHtml('Ngày sinh', formatDateVN(p.birth)) : '') +
-      (parseDate(p.death) && parseDate(p.death).d ? rowHtml('Ngày mất', formatDateVN(p.death)) : '');
+      (parseDate(p.death) && parseDate(p.death).d ? rowHtml('Ngày mất', formatDateVN(p.death)) : '') +
+      (function () {
+        const gl = parseLunarStr(p.deathLunar);
+        if (!gl) return '';
+        const o = lunarOcc(gl.mo, gl.d);
+        if (!o) return rowHtml('Ngày giỗ (âm lịch)', String(p.deathLunar).trim());
+        const dd = o.date.getDate(), mm = o.date.getMonth() + 1;
+        const dl = (dd < 10 ? '0' + dd : dd) + '/' + (mm < 10 ? '0' + mm : mm) + '/' + o.date.getFullYear();
+        return rowHtml('Ngày giỗ (âm lịch)', String(p.deathLunar).trim()) +
+          rowHtml('Kỳ giỗ sắp tới (dương lịch)', dl);
+      })();
     const chips = upcomingEvents()
       .filter((e) => e.person.id === id)
       .map((e) => '<div class="d-chip' + (e.days === 0 ? ' today' : '') + '">' +
@@ -1114,17 +1498,20 @@
     el.details.innerHTML =
       '<button class="icon-btn d-close" id="dClose">' + ICONS.close + '</button>' +
       '<div class="d-head">' +
-        '<div class="d-avatar ' + g.cls + '">' + (p.photo ? '<img src="' + esc(p.photo) + '" alt="">' : esc((p.name || '?').charAt(0).toUpperCase())) + '</div>' +
+        '<div class="d-avatar ' + g.cls + (canEditInfo() ? ' editable' : '') + '"' + (canEditInfo() ? ' id="dAvatar" title="Nhấn để thay ảnh đại diện"' : '') + '>' +
+          (p.photo ? '<img src="' + esc(p.photo) + '" alt="">' : esc((p.name || '?').charAt(0).toUpperCase())) +
+          (canEditInfo() ? '<span class="d-ava-cam"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>' : '') +
+        '</div>' +
         '<div><h2>' + esc(p.name) + '</h2><div class="d-sub">' + g.label + (yearsStr(p) ? ' · ' + esc(yearsStr(p)) : '') + '</div></div>' +
       '</div>' +
       chips +
       (p.note ? '<p class="d-note">' + esc(p.note) + '</p>' : '') +
-      '<div class="d-actions admin-only">' +
-        '<button id="dEdit" class="btn sm primary">' + ICONS.pencil + ' Sửa</button>' +
+      (canEditInfo() ? '<div class="d-actions"><button id="dEdit" class="btn sm primary">' + ICONS.pencil + ' Sửa</button></div>' : '') +
+      (isAdmin() ? '<div class="d-actions admin-only">' +
         '<button id="dAddChild" class="btn sm">' + ICONS.plus + ' Thêm con</button>' +
         '<button id="dAddSpouse" class="btn sm">' + ICONS.plus + ' Thêm vợ/chồng</button>' +
         '<button id="dDelete" class="btn sm danger">' + ICONS.trash + ' Xóa</button>' +
-      '</div>' +
+      '</div>' : '') +
       ((infoRows || dateRows) ? '<div class="d-section"><h4>Hồ sơ</h4>' + dateRows + infoRows + '</div>' : '') +
       (contactRows ? '<div class="d-section"><h4>Liên hệ</h4>' + contactRows + '</div>' : '') +
       '<div class="d-section"><h4>Cha / Mẹ</h4>' + linkList(parents) + '</div>' +
@@ -1151,6 +1538,10 @@
     el.details.classList.remove('hidden');
   }
 
+  function annFirstPhoto(a) {
+    return a.photo || (Array.isArray(a.photos) && a.photos.length ? a.photos[0] : null);
+  }
+
   function renderNotifications() {
     const evts = upcomingEvents();
     const annHtml = announcements.length
@@ -1159,8 +1550,9 @@
             ? '<button class="icon-btn" data-act="edit-ann" data-id="' + a.id + '" title="Sửa">' + ICONS.pencil + '</button>' +
               '<button class="icon-btn bi-del" data-id="' + a.id + '" title="Xóa thông báo">' + ICONS.close + '</button>'
             : '';
+          const ph = annFirstPhoto(a);
           return '<div class="bell-item">' +
-            (a.photo ? '<img class="ann-photo" src="' + esc(a.photo) + '" alt="">' : '') +
+            (ph ? '<img class="ann-photo" src="' + esc(ph) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
             '<div class="bi-main">' +
               '<div class="bi-title">' + esc(a.title) + '</div>' +
               '<div class="bi-sub">' + esc(a.authorName || a.author || 'Ban quản trị') + (a.date ? ' · ' + esc(formatDateVN(a.date)) : '') + '</div>' +
@@ -1171,11 +1563,20 @@
       : '<div class="bell-empty">Chưa có thông báo nào.</div>';
     const evtHtml = evts.length
       ? evts.map((e) => {
+          if (e.family) {
+            const when = e.days === 0 ? 'Hôm nay!' : (e.days === 1 ? 'Ngày mai' : 'còn ' + e.days + ' ngày');
+            const dl = e.date.getDate() + '/' + (e.date.getMonth() + 1);
+            return '<div class="bell-item">' +
+              '<div class="bi-avatar other">✦</div>' +
+              '<div class="bi-main"><div class="bi-title">Kỳ giỗ: ' + esc(e.famName) + '</div>' +
+              '<div class="bi-sub">' + esc(e.famLunar || '') + ' âm lịch · ' + when + ' · Dương lịch ' + dl + '</div></div>' +
+            '</div>';
+          }
           const g = GENDER[e.person.gender] || GENDER.o;
           const when = e.days === 0 ? 'Hôm nay!' : (e.days === 1 ? 'Ngày mai' : 'còn ' + e.days + ' ngày');
           const label = e.type === 'birthday'
             ? 'Sinh nhật ' + esc(e.person.name) + (e.age != null ? ' (tròn ' + e.age + ' tuổi)' : '')
-            : 'Ngày giỗ của ' + esc(e.person.name);
+            : 'Ngày giỗ của ' + esc(e.person.name) + (e.lunar ? ' (' + esc((e.person.deathLunar || '').trim()) + ' AL)' : '');
           return '<div class="bell-item clickable" data-person="' + e.person.id + '">' +
             '<div class="bi-avatar ' + g.cls + '">' + (e.person.photo ? '<img src="' + esc(e.person.photo) + '" alt="">' : esc((e.person.name || '?').charAt(0).toUpperCase())) + '</div>' +
             '<div class="bi-main"><div class="bi-title">' + label + '</div>' +
@@ -1287,7 +1688,7 @@
     if (!$('viewMonth').classList.contains('hidden')) renderMonthBoard();
   }
 
-  const ACC_KEY = 'giapha-accounts-v1';
+  const ACC_KEY = 'giapha-accounts-v4';
   const SES_KEY = 'giapha-session-v1';
   const ROLE_INFO = {
     admin: { label: 'Quản trị viên' },
@@ -1325,9 +1726,14 @@
 
   function defaultAccounts() {
     return [
-      { username: 'Admin', name: 'Quản trị viên', role: 'admin', pw: 'Admin@192' },
-      { username: 'Author', name: 'Người đăng bài', role: 'author', pw: 'Author@192' },
-      { username: 'Viewer', name: 'Thành viên chỉ xem', role: 'viewer', pw: 'Viewer@192' }
+      { username: 'Admin', name: 'Administrator', role: 'admin', pw: 'Admin@1921985' },
+      { username: 'Author', name: 'Administrator', role: 'author', pw: 'Author@123' },
+      { username: 'View', name: 'Viewer', role: 'viewer', pw: 'View@123' },
+      { username: 'Bangtd', name: 'Trương Đình Bảng', role: 'author', pw: 'Bangtd@123' },
+      { username: 'Dungth', name: 'Trương Hoàng Dung', role: 'author', pw: 'Dungth@123' },
+      { username: 'Nguyenth', name: 'Trương Hoàng Nguyên', role: 'author', pw: 'Nguyenth@123' },
+      { username: 'Dungtht', name: 'Trương Hoàng Thùy Dung', role: 'author', pw: 'Dungtht@123' },
+      { username: 'Locth', name: 'Trương Hoàng Lộc', role: 'admin', pw: 'Locth@1921985' }
     ];
   }
 
@@ -1386,6 +1792,8 @@
 
   function isAdmin() { return !!currentUser && currentUser.role === 'admin'; }
 
+  function canEditInfo() { return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'author'); }
+
   function canPost() { return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'author'); }
 
   function ownsAnn(a) {
@@ -1416,6 +1824,7 @@
     currentUser = null;
     saveSession(null);
     applyRole();
+    render();
     $('loginPw').value = '';
     $('loginError').classList.add('hidden');
     $('loginGate').classList.remove('hidden');
@@ -1427,6 +1836,8 @@
     saveSession(session);
     lastActivity = Date.now();
     applyRole();
+    render();
+    showView('home');
     $('loginGate').classList.add('hidden');
   }
 
@@ -1541,7 +1952,7 @@
   }
 
   function openModal(opts) {
-    if (!isAdmin()) return;
+    if (opts && opts.mode === 'edit' ? !canEditInfo() : !isAdmin()) return;
     opts = opts || {};
     editingId = opts.mode === 'edit' ? opts.id : null;
     const p = editingId ? byId(editingId) : null;
@@ -1550,6 +1961,7 @@
     el.fGender.value = p ? (p.gender || 'o') : 'm';
     el.fBirth.value = p ? p.birth : '';
     el.fDeath.value = p ? p.death : '';
+    el.fDeathLunar.value = p ? (p.deathLunar || '') : '';
     el.fNote.value = p ? p.note : '';
     el.fHometown.value = p ? p.hometown : '';
     el.fJob.value = p ? p.job : '';
@@ -1600,6 +2012,7 @@
 
   function saveForm(e) {
     e.preventDefault();
+    if (editingId ? !canEditInfo() : !isAdmin()) return;
     const name = el.fName.value.trim();
     if (!name) {
       el.fName.classList.add('invalid');
@@ -1612,6 +2025,7 @@
       gender: el.fGender.value,
       birth: el.fBirth.value.trim(),
       death: el.fDeath.value.trim(),
+      deathLunar: el.fDeathLunar.value.trim(),
       note: el.fNote.value.trim(),
       photo: photoData,
       hometown: el.fHometown.value.trim(),
@@ -1742,11 +2156,65 @@
     if (p) {
       if (Math.round(left - ds.bx)) p.dx = Math.round(left - ds.bx); else delete p.dx;
       if (Math.round(top - ds.by)) p.dy = Math.round(top - ds.by); else delete p.dy;
-      persist();
+      layoutDirty = true;
+      updateTreeTools();
       render();
     }
     lastDragMoved = true;
     window.setTimeout(() => { lastDragMoved = false; }, 0);
+  });
+
+  let layoutDirty = false;
+
+  function updateTreeTools() {
+    const btn = $('btnTreeSave');
+    if (!btn) return;
+    btn.classList.toggle('dirty', layoutDirty);
+    btn.title = layoutDirty ? 'Có thay đổi bố cục chưa lưu' : 'Lưu vị trí các ô đã kéo';
+  }
+
+  $('btnTreeSave').addEventListener('click', () => {
+    if (!isAdmin()) return;
+    persist();
+    layoutDirty = false;
+    updateTreeTools();
+  });
+
+  $('btnTreeReset').addEventListener('click', () => {
+    if (!isAdmin()) return;
+    people.forEach((p) => { delete p.dx; delete p.dy; });
+    layoutDirty = false;
+    persist();
+    render();
+    fitView();
+    updateTreeTools();
+  });
+
+  let avaTargetId = null;
+
+  el.details.addEventListener('click', (e) => {
+    if (!canEditInfo() || !e.target.closest('#dAvatar')) return;
+    const p = byId(selectedId);
+    if (!p) return;
+    avaTargetId = p.id;
+    $('avaInput').click();
+  });
+
+  $('avaInput').addEventListener('change', () => {
+    const f = $('avaInput').files && $('avaInput').files[0];
+    if (!f || !avaTargetId) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const p = byId(avaTargetId);
+      if (p) {
+        p.photo = reader.result;
+        persist();
+        render();
+        if (selectedId === avaTargetId) showDetails(avaTargetId);
+      }
+      $('avaInput').value = '';
+    };
+    reader.readAsDataURL(f);
   });
 
   el.canvas.addEventListener('wheel', (e) => {
@@ -1787,6 +2255,7 @@
       else if (!el.announceOverlay.classList.contains('hidden')) closeAnnounceModal();
       else if (!$('postEditor').classList.contains('hidden')) closePostEditor();
       else if (!$('postOverlay').classList.contains('hidden')) closePostDetail();
+      else if (!$('listOverlay').classList.contains('hidden')) closeListOverlay();
       else if (!el.bellPanel.classList.contains('hidden')) closeBell();
       else if (!el.modalOverlay.classList.contains('hidden')) closeModal();
       else if (document.body.classList.contains('tree-fs')) showView('home');
@@ -2015,6 +2484,19 @@
       !e.target.closest('#bellPanel') && !e.target.closest('#btnBell')) closeBell();
   });
 
+  $('btnCloseList').addEventListener('click', closeListOverlay);
+  $('listOverlay').addEventListener('mousedown', (e) => {
+    if (e.target === $('listOverlay')) closeListOverlay();
+  });
+  $('listBody').addEventListener('click', (e) => {
+    const per = e.target.closest('[data-person]');
+    if (!per) return;
+    closeListOverlay();
+    showView('tree');
+    select(per.dataset.person);
+    focusPerson(per.dataset.person);
+  });
+
   el.form.addEventListener('submit', saveForm);
 
   $('btnAdd').addEventListener('click', () => openModal({ mode: 'add' }));
@@ -2086,6 +2568,7 @@
           gender: GENDER[p.gender] ? p.gender : 'o',
           birth: str(p.birth),
           death: str(p.death),
+          deathLunar: str(p.deathLunar),
           note: str(p.note),
           photo: typeof p.photo === 'string' ? p.photo : null,
           hometown: str(p.hometown),
@@ -2098,6 +2581,7 @@
         };
         if (typeof p.dx === 'number' && isFinite(p.dx)) item.dx = Math.round(p.dx);
         if (typeof p.dy === 'number' && isFinite(p.dy)) item.dy = Math.round(p.dy);
+        if (typeof p.ord === 'number' && isFinite(p.ord)) item.ord = Math.round(p.ord);
         clean.push(item);
       });
       if (!clean.length) throw new Error('empty');
@@ -2112,6 +2596,10 @@
           title: a.title,
           date: str(a.date),
           content: str(a.content),
+          photo: typeof a.photo === 'string' ? a.photo : null,
+          photos: Array.isArray(a.photos) ? a.photos.filter((x) => typeof x === 'string') : [],
+          author: typeof a.author === 'string' ? a.author : 'Admin',
+          authorName: typeof a.authorName === 'string' ? a.authorName : 'Quản trị viên',
           createdAt: typeof a.createdAt === 'number' ? a.createdAt : Date.now()
         }));
       people = clean;
@@ -2170,6 +2658,7 @@
       const iGender = col('Giới tính', 'gender');
       const iBirth = col('Ngày/Năm sinh', 'Ngày sinh', 'Năm sinh', 'Sinh', 'birth');
       const iDeath = col('Ngày/Năm mất', 'Ngày mất', 'Năm mất', 'Mất', 'death');
+      const iDeathLunar = col('Ngày giỗ (âm lịch)', 'Ngày giỗ âm lịch', 'Giỗ âm lịch', 'deathLunar');
       const iFather = col('Cha', 'father');
       const iMother = col('Mẹ', 'mother');
       const iSpouse = col('Vợ/Chồng', 'Vợ chồng', 'spouses');
@@ -2179,6 +2668,7 @@
       const iPhone = col('Điện thoại', 'Số điện thoại', 'phone');
       const iEmail = col('Email', 'email');
       const iNote = col('Ghi chú', 'note');
+      const iOrd = col('Thứ tự', 'Thu tu anh chi em', 'ord');
       if (iName < 0) throw new Error('no-name');
       const clean = [];
       const byId = new Map();
@@ -2196,12 +2686,15 @@
         const p = {
           id: id, name: name, gender: gender,
           birth: get(iBirth), death: get(iDeath),
+          deathLunar: get(iDeathLunar),
           note: get(iNote), photo: null,
           hometown: get(iHome), job: get(iJob), address: get(iAddr),
           phone: get(iPhone), email: get(iEmail),
           parents: [], spouses: [],
           _father: get(iFather), _mother: get(iMother), _spouses: get(iSpouse)
         };
+        const ordRaw = get(iOrd);
+        if (ordRaw && isFinite(parseInt(ordRaw, 10))) p.ord = parseInt(ordRaw, 10);
         clean.push(p);
         byId.set(p.id, p);
         if (!byName.has(name)) byName.set(name, p);
@@ -2274,14 +2767,29 @@
   });
 
   viewHome.addEventListener('click', (e) => {
-    const go = e.target.closest('[data-goto]');
-    if (go) { showView(go.dataset.goto); return; }
+    const annEdit = e.target.closest('[data-ann-edit]');
+    if (annEdit) {
+      const a = announcements.find((x) => x.id === annEdit.dataset.annEdit);
+      if (a && ownsAnn(a)) openAnnounceModal({ edit: a.id });
+      return;
+    }
+    const annDel = e.target.closest('[data-ann-del]');
+    if (annDel) {
+      const a = announcements.find((x) => x.id === annDel.dataset.annDel);
+      if (a && ownsAnn(a)) deleteAnnouncement(a.id);
+      return;
+    }
     const per = e.target.closest('[data-person]');
     if (per) {
       showView('tree');
       select(per.dataset.person);
       focusPerson(per.dataset.person);
+      return;
     }
+    const lb = e.target.closest('[data-list]');
+    if (lb) { openListOverlay(lb.dataset.list); return; }
+    const go = e.target.closest('[data-goto]');
+    if (go) { showView(go.dataset.goto); return; }
   });
 
   contactForm.addEventListener('submit', (e) => {
@@ -2296,7 +2804,41 @@
     cMsg.value = '';
   });
 
+  // Vá dữ liệu một lần: ngày sinh đầy đủ (dương lịch) theo sổ giấy của gia đình
+  function applyBirthdayPatch() {
+    try {
+      if (localStorage.getItem('giapha-patch-2') === 'done') return;
+      const map = {
+        tbang: '26/03/1945', llechi: '26/03/1945', pdnhiem: '17/03/1971',
+        thuydung: '23/03/1975', pnhann: '22/05/2004', ldiem: '16/04/1972',
+        tbach: '19/08/2002', dcuong: '23/05/1974', dkhoi: '23/08/2003'
+      };
+      let changed = false;
+      people.forEach((p) => {
+        if (map[p.id] && p.birth !== map[p.id]) { p.birth = map[p.id]; changed = true; }
+      });
+      localStorage.setItem('giapha-patch-2', 'done');
+      if (changed) persist();
+    } catch (e) {}
+  }
+
+  // Vá dữ liệu một lần: thứ tự anh chị em (chị đầu → em út)
+  function applyOrderPatch() {
+    try {
+      if (localStorage.getItem('giapha-patch-3') === 'done') return;
+      const map = { tdung: 1, tnguyen: 2, thuydung: 3, tloc: 4 };
+      let changed = false;
+      people.forEach((p) => {
+        if (map[p.id] && p.ord !== map[p.id]) { p.ord = map[p.id]; changed = true; }
+      });
+      localStorage.setItem('giapha-patch-3', 'done');
+      if (changed) persist();
+    } catch (e) {}
+  }
+
   load();
+  applyBirthdayPatch();
+  applyOrderPatch();
   loadPosts();
   render();
   fitView();
