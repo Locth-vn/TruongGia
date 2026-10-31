@@ -1,0 +1,379 @@
+{
+  "people": [
+    {
+      "id": "tbang",
+      "name": "Trương Đình Bảng",
+      "gender": "m",
+      "birth": "26/03/1945",
+      "death": "",
+      "deathLunar": "",
+      "note": "Ông nội",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [],
+      "spouses": [
+        "llechi"
+      ]
+    },
+    {
+      "id": "llechi",
+      "name": "Hoàng Thị Lệ Chi",
+      "gender": "f",
+      "birth": "26/03/1945",
+      "death": "10/01/2021",
+      "deathLunar": "27/11",
+      "note": "Bà nội",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [],
+      "spouses": [
+        "tbang"
+      ]
+    },
+    {
+      "id": "tdung",
+      "name": "Trương Hoàng Dung",
+      "gender": "f",
+      "birth": "18/2",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con ruột 1",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "tbang",
+        "llechi"
+      ],
+      "spouses": [
+        "pdnhiem"
+      ],
+      "ord": 1
+    },
+    {
+      "id": "pdnhiem",
+      "name": "Phạm Đình Nhiệm",
+      "gender": "m",
+      "birth": "17/03/1971",
+      "death": "",
+      "deathLunar": "",
+      "note": "Chồng chị 1",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [],
+      "spouses": [
+        "tdung"
+      ]
+    },
+    {
+      "id": "pcuong",
+      "name": "Phạm Minh Cường",
+      "gender": "m",
+      "birth": "08/10/2000",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con 1 chị 1",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "pdnhiem",
+        "tdung"
+      ],
+      "spouses": []
+    },
+    {
+      "id": "pnhann",
+      "name": "Phạm Thùy Nhàn",
+      "gender": "f",
+      "birth": "22/05/2004",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con 2 chị 1",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "pdnhiem",
+        "tdung"
+      ],
+      "spouses": []
+    },
+    {
+      "id": "tnguyen",
+      "name": "Trương Hoàng Nguyên",
+      "gender": "m",
+      "birth": "12/2",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con ruột 2",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "tbang",
+        "llechi"
+      ],
+      "spouses": [
+        "ldiem"
+      ],
+      "ord": 2
+    },
+    {
+      "id": "ldiem",
+      "name": "Lê Quang Ánh Diễm",
+      "gender": "f",
+      "birth": "16/04/1972",
+      "death": "",
+      "deathLunar": "",
+      "note": "Vợ trai 2",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [],
+      "spouses": [
+        "tnguyen"
+      ]
+    },
+    {
+      "id": "tbach",
+      "name": "Trương Lê Bách",
+      "gender": "m",
+      "birth": "19/08/2002",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con 1 trai 2",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "tnguyen",
+        "ldiem"
+      ],
+      "spouses": []
+    },
+    {
+      "id": "thuydung",
+      "name": "Trương Hoàng Thùy Dung",
+      "gender": "f",
+      "birth": "23/03/1975",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con ruột 3",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "tbang",
+        "llechi"
+      ],
+      "spouses": [
+        "dcuong"
+      ],
+      "ord": 3
+    },
+    {
+      "id": "dcuong",
+      "name": "Đặng Đức Cương",
+      "gender": "m",
+      "birth": "23/05/1974",
+      "death": "",
+      "deathLunar": "",
+      "note": "Chồng con 3",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [],
+      "spouses": [
+        "thuydung"
+      ]
+    },
+    {
+      "id": "dkhoi",
+      "name": "Đặng Đức Khôi",
+      "gender": "m",
+      "birth": "23/08/2003",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con 1 chị 3",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "dcuong",
+        "thuydung"
+      ],
+      "spouses": []
+    },
+    {
+      "id": "tloc",
+      "name": "Trương Hoàng Lộc",
+      "gender": "m",
+      "birth": "19/02/1985",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con ruột 4",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "tbang",
+        "llechi"
+      ],
+      "spouses": [
+        "thoai"
+      ],
+      "ord": 4
+    },
+    {
+      "id": "thoai",
+      "name": "Nguyễn Thị Thúy Hoài",
+      "gender": "f",
+      "birth": "16/06/1985",
+      "death": "",
+      "deathLunar": "",
+      "note": "Vợ trai 4",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [],
+      "spouses": [
+        "tloc"
+      ]
+    },
+    {
+      "id": "tkhoa",
+      "name": "Trương Đăng Khoa",
+      "gender": "m",
+      "birth": "19/05/2014",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con 1 trai 4",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "tloc",
+        "thoai"
+      ],
+      "spouses": []
+    },
+    {
+      "id": "than",
+      "name": "Trương Hoàng Hoài An",
+      "gender": "f",
+      "birth": "10/01/2022",
+      "death": "",
+      "deathLunar": "",
+      "note": "Con 2 trai 4",
+      "photo": null,
+      "hometown": "",
+      "job": "",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "parents": [
+        "tloc",
+        "thoai"
+      ],
+      "spouses": []
+    }
+  ],
+  "announcements": [
+    {
+      "id": "ann-open",
+      "title": "Chào mừng đến với website nội bộ gia đình",
+      "date": "",
+      "content": "Trang nhà riêng của đại gia đình ông Trương Đình Bảng (họ Trương — bên bố) và bà Hoàng Thị Lệ Chi (họ Hoàng — bên mẹ), dành để lưu giữ gia phả các thế hệ, nhắc sinh nhật — ngày giỗ, chia sẻ thông báo và hình ảnh của các nhánh. Thành viên đăng nhập bằng tài khoản do quản trị viên cấp. Ai có tin tức, hình ảnh mới xin gửi về Ban quản trị để đăng lên.",
+      "photo": null,
+      "photos": [
+        "img/gia-dinh-1.jpg",
+        "img/gia-dinh-2.jpg"
+      ],
+      "author": "Admin",
+      "authorName": "Quản trị viên",
+      "createdAt": 1793332416821
+    },
+    {
+      "id": "ann-sample-1",
+      "title": "Lễ giỗ tổ Trương Gia",
+      "date": "2026-11-09",
+      "content": "Toàn thể dòng họ tề tựu tại nhà thờ họ lúc 10 giờ. Các nhánh chuẩn bị hương hoa, trầu quả đầy đủ.",
+      "photo": null,
+      "photos": [],
+      "author": "Admin",
+      "authorName": "Quản trị viên",
+      "createdAt": 1793246016821
+    },
+    {
+      "id": "ann-sample-2",
+      "title": "Quỹ tu sửa nhà thờ họ",
+      "date": "",
+      "content": "Mỗi nhánh đóng góp tùy khả năng, xin gửi về Ban quản trị gia tộc trước ngày 15 để thống nhất danh sách.",
+      "photo": null,
+      "photos": [],
+      "author": "Admin",
+      "authorName": "Quản trị viên",
+      "createdAt": 1792986816821
+    },
+    {
+      "id": "ann-sample-3",
+      "title": "Cập nhật danh sách liên lạc đại gia đình",
+      "date": "",
+      "content": "Mỗi hộ xin gửi số điện thoại, địa chỉ hiện tại về Zalo nhóm Trương Gia Family trước cuối tháng.",
+      "photo": null,
+      "photos": [],
+      "author": "Admin",
+      "authorName": "Quản trị viên",
+      "createdAt": 1792727616821
+    }
+  ]
+}
